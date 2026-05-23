@@ -37,7 +37,8 @@ jobs:
       - name: Build
         # 跳过本地生成数据 (process_photos.js)，因为照片原文件不会提交到 github
         # 只要你本地生成好的 public/photos_db.json 提交上去了就可以
-        run: npx tsc -b && npx vite build
+        # 另外需要删除 public/photos 软链接，否则 Vite 编译会因为找不到目标文件夹报错
+        run: rm -f public/photos && npx tsc -b && npx vite build
         env:
           VITE_IMAGE_BASE_URL: https://pic.yvonshong.com/gallery/
 
