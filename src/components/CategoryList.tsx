@@ -183,7 +183,7 @@ function FilmStripRow({
                   transition={{ delay: 0.4 + groupIndex * 0.1 + i * 0.05 }}
                 >
                   <div className={`film-edge-text top-edge${hoveredId === cat.id ? ' hovered' : ''}`}>
-                    <ResponsiveLocationText locationName={cat.randomCoverPhoto?.locationName} />
+                    <ResponsiveLocationText locationName={cat.randomCoverPhoto?.locationName || cat.locationName} />
                   </div>
                 </motion.div>
               ))}
