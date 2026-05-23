@@ -208,7 +208,7 @@ function FilmStripRow({
                   onTouchCancel={() => setHoveredId(null)}
                   style={{ scrollSnapAlign: 'start' }}
                 >
-                  <Link to={`/category/${cat.id}`} style={{ textDecoration: 'none', display: 'block' }}>
+                  <Link to={`/${cat.id}`} style={{ textDecoration: 'none', display: 'block' }}>
                     <div className={`film-image-wrap${hoveredId === cat.id ? ' hovered' : ''}`}>
                       <img
                         src={cat.randomCover}
