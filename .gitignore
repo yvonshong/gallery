@@ -26,3 +26,4 @@ photos/*
 .env.local
 .env.*
 
+*.pyc

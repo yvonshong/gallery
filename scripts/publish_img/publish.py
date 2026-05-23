@@ -3,6 +3,7 @@
 import os
 import sys
 import mimetypes
+import argparse
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -96,6 +97,10 @@ def upload_file(file_path, r2_key):
         return False, f"{r2_key}: {e}"
 
 def main():
+    parser = argparse.ArgumentParser(description="Upload gallery photos to Cloudflare R2")
+    parser.add_argument('-f', '--force', action='store_true', help="Force upload all files, overwriting existing ones")
+    args = parser.parse_args()
+
     if not photos_dir.exists():
         print(f"Error: Photos directory not found at {photos_dir}")
         sys.exit(1)
@@ -116,11 +121,15 @@ def main():
 
     print(f"Found {len(local_files)} local files in photos directory.")
 
-    # Fetch existing files in R2 under the gallery/ prefix
-    try:
-        existing_keys = get_existing_keys(prefix="gallery/")
-    except Exception:
-        sys.exit(1)
+    existing_keys = set()
+    if not args.force:
+        # Fetch existing files in R2 under the gallery/ prefix
+        try:
+            existing_keys = get_existing_keys(prefix="gallery/")
+        except Exception:
+            sys.exit(1)
+    else:
+        print("Force mode enabled: uploading all files without checking existence.")
 
     upload_tasks = []
     for file_path in local_files:
