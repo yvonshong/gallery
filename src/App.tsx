@@ -43,7 +43,7 @@ function MainLayout({ db }: { db: PhotosDB | null }) {
   const location = window.location.hash;
 
   useEffect(() => {
-    if (window.location.hash.length > 2 && window.location.hash !== '#/') {
+    if (window.location.hash.startsWith('#/photos')) {
       return;
     }
     const container = document.getElementById('scroll-container');
@@ -79,7 +79,7 @@ function MainLayout({ db }: { db: PhotosDB | null }) {
       <div id="scroll-container" style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: 1, overflowY: 'auto' }}>
         <Routes>
           <Route path="/" element={<CategoryList db={db} onHoverCategory={handleSetLocation} />} />
-          <Route path="/:id" element={<PhotoGridWrapper db={db} setLocation={handleSetLocation} />} />
+          <Route path="/photos/:id?" element={<PhotoGridWrapper db={db} setLocation={handleSetLocation} />} />
         </Routes>
       </div>
     </div>

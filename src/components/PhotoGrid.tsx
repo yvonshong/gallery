@@ -13,135 +13,16 @@ interface PhotoGridProps {
   setLocation: (lat: number, lng: number) => void;
 }
 
-function LazyCategorySection({
-  category,
-  activeCategoryId
-}: {
-  category: CategoryData;
-  activeCategoryId?: string;
-}) {
-  const [hasBeenInView, setHasBeenInView] = useState(false);
-  const elementRef = useRef<HTMLDivElement>(null);
-
-  // If this is the active category, load it immediately
-  useEffect(() => {
-    if (activeCategoryId === category.id) {
-      setHasBeenInView(true);
-    }
-  }, [activeCategoryId, category.id]);
-
-  useEffect(() => {
-    if (hasBeenInView) return; // Already loaded
-
-    const scrollContainer = document.getElementById('scroll-container');
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setHasBeenInView(true);
-        }
-      },
-      {
-        root: scrollContainer,
-        rootMargin: '600px 0px 600px 0px', // Load 600px ahead of viewport for seamless UX
-        threshold: 0.01
-      }
-    );
-
-    if (elementRef.current) {
-      observer.observe(elementRef.current);
-    }
-
-    return () => {
-      observer.disconnect();
-    };
-  }, [category.id, hasBeenInView]);
-
-  return (
-    <section
-      ref={elementRef}
-      id={category.id}
-      style={{
-        marginBottom: '8rem',
-        scrollMarginTop: '6rem',
-        minHeight: '350px' // reasonable minimum height for layout stability
-      }}
-    >
-      <header style={{ marginBottom: '3rem' }}>
-        <h2 style={{
-          fontFamily: 'var(--font-heading)',
-          fontStyle: 'italic',
-          fontSize: 'clamp(2rem, 5vw, 4rem)',
-          fontWeight: 400,
-          letterSpacing: '0.02em',
-          lineHeight: 1.1,
-          marginBottom: '0',
-          marginTop: '0',
-          color: 'var(--text-primary)'
-        }}>
-          {category.name.replace(/^[0-9.]+-/, '')}
-        </h2>
-      </header>
-
-      {hasBeenInView ? (
-        <PhotoProvider
-          maskOpacity={0.9}
-          bannerVisible={false}
-          overlayRender={({ index, onClose }) => {
-            const photo = category.photos[index];
-            if (!photo) return null;
-            return <PhotoDetailModal photo={photo} locationName={photo.locationName || category.locationName} onClose={onClose} />;
-          }}
-        >
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
-            gap: '5rem 4rem',
-          } as React.CSSProperties}>
-            {category.photos.map((photo, index) => (
-              <PhotoView key={photo.id} src={photo.webRawUrl}>
-                <motion.div
-                  initial={{ opacity: 0, y: 30 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.05, type: 'spring', damping: 20, stiffness: 100 }}
-                  className="fuji-sq"
-                >
-                  <div className="fuji-sq-inner">
-                    <img
-                      src={photo.thumbUrl}
-                      alt={photo.filename}
-                      className="photo-img"
-                      loading="lazy"
-                    />
-                  </div>
-                </motion.div>
-              </PhotoView>
-            ))}
-          </div>
-        </PhotoProvider>
-      ) : (
-        <div style={{
-          height: '250px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          color: 'var(--text-secondary)',
-          fontSize: '1rem',
-          fontStyle: 'italic',
-          fontFamily: 'var(--font-heading)',
-          border: '1px dashed rgba(0,0,0,0.1)',
-          borderRadius: '8px'
-        }}>
-          Loading category gallery...
-        </div>
-      )}
-    </section>
-  );
-}
-
 export default function PhotoGrid({ categories, activeCategoryId, setLocation }: PhotoGridProps) {
   // Scroll to active category on mount or when activeCategoryId changes
   useEffect(() => {
     if (activeCategoryId) {
+      // First, quickly reset scroll position to top so we don't trigger lazy loads on the old scroll position from the homepage
+      const container = document.getElementById('scroll-container');
+      if (container && container.scrollTop > 0) {
+        container.scrollTop = 0;
+      }
+
       // Small timeout to ensure DOM is fully rendered and active category is populated
       const timer = setTimeout(() => {
         const element = document.getElementById(activeCategoryId);
@@ -220,11 +101,67 @@ export default function PhotoGrid({ categories, activeCategoryId, setLocation }:
           if (!category.photos || category.photos.length === 0) return null;
 
           return (
-            <LazyCategorySection
+            <section
               key={category.id}
-              category={category}
-              activeCategoryId={activeCategoryId}
-            />
+              id={category.id}
+              style={{
+                marginBottom: '8rem',
+                scrollMarginTop: '6rem',
+                minHeight: '350px' // reasonable minimum height for layout stability
+              }}
+            >
+              <header style={{ marginBottom: '3rem' }}>
+                <h2 style={{
+                  fontFamily: 'var(--font-heading)',
+                  fontStyle: 'italic',
+                  fontSize: 'clamp(2rem, 5vw, 4rem)',
+                  fontWeight: 400,
+                  letterSpacing: '0.02em',
+                  lineHeight: 1.1,
+                  marginBottom: '0',
+                  marginTop: '0',
+                  color: 'var(--text-primary)'
+                }}>
+                  {category.name.replace(/^[0-9.]+-/, '')}
+                </h2>
+              </header>
+
+              <PhotoProvider
+                maskOpacity={0.9}
+                bannerVisible={false}
+                overlayRender={({ index, onClose }) => {
+                  const photo = category.photos[index];
+                  if (!photo) return null;
+                  return <PhotoDetailModal photo={photo} locationName={photo.locationName || category.locationName} onClose={onClose} />;
+                }}
+              >
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
+                  gap: '5rem 4rem',
+                } as React.CSSProperties}>
+                  {category.photos.map((photo, index) => (
+                    <PhotoView key={photo.id} src={photo.webRawUrl}>
+                      <motion.div
+                        initial={{ opacity: 0, y: 30 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: index * 0.05, type: 'spring', damping: 20, stiffness: 100 }}
+                        className="fuji-sq"
+                      >
+                        <div className="fuji-sq-inner">
+                          <img
+                            src={photo.thumbUrl}
+                            alt={photo.filename}
+                            className="photo-img"
+                            loading="lazy"
+                          />
+                        </div>
+                      </motion.div>
+                    </PhotoView>
+                  ))}
+                </div>
+              </PhotoProvider>
+            </section>
           );
         })}
       </div>
