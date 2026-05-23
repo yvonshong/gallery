@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { HashRouter, Routes, Route, useParams } from 'react-router-dom';
+import { HashRouter, Routes, Route, useLocation } from 'react-router-dom';
 import GlobeBackground from './components/GlobeBackground';
 import CategoryList from './components/CategoryList';
 import PhotoGrid from './components/PhotoGrid';
@@ -79,7 +79,7 @@ function MainLayout({ db }: { db: PhotosDB | null }) {
       <div id="scroll-container" style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: 1, overflowY: 'auto' }}>
         <Routes>
           <Route path="/" element={<CategoryList db={db} onHoverCategory={handleSetLocation} />} />
-          <Route path="/photos/:id?" element={<PhotoGridWrapper db={db} setLocation={handleSetLocation} />} />
+          <Route path="/photos" element={<PhotoGridWrapper db={db} setLocation={handleSetLocation} />} />
         </Routes>
       </div>
     </div>
@@ -87,7 +87,8 @@ function MainLayout({ db }: { db: PhotosDB | null }) {
 }
 
 function PhotoGridWrapper({ db, setLocation }: { db: PhotosDB, setLocation: (lat: number, lng: number) => void }) {
-  const { id } = useParams();
+  const location = useLocation();
+  const id = location.hash ? location.hash.slice(1) : undefined;
   
   return <PhotoGrid categories={db.categories} activeCategoryId={id} setLocation={setLocation} />;
 }
