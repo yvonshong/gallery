@@ -75,6 +75,7 @@ function LazyCategorySection({
           letterSpacing: '0.02em',
           lineHeight: 1.1,
           marginBottom: '0',
+          marginTop: '0',
           color: 'var(--text-primary)'
         }}>
           {category.name.replace(/^[0-9.]+-/, '')}
@@ -196,7 +197,7 @@ export default function PhotoGrid({ categories, activeCategoryId, setLocation }:
       zIndex: 20
     }}>
       <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
-        <header style={{ marginBottom: '4rem', paddingTop: '2rem', position: 'relative' }}>
+        <header style={{ marginBottom: '1.5rem', paddingTop: '1rem', position: 'relative' }}>
           <Link to="/" style={{
             display: 'inline-flex',
             alignItems: 'center',

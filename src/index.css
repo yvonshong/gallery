@@ -92,7 +92,7 @@ a {
   background-color: #111;
   padding: clamp(4px, 1vw, 4px) 0;
   position: relative;
-  margin-bottom: clamp(3rem, 6vw, 6rem);
+  margin-bottom: clamp(1.5rem, 3vw, 3rem);
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
 }
 

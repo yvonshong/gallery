@@ -36,9 +36,9 @@ function ResponsiveLocationText({ locationName }: { locationName?: string }) {
     };
 
     checkWrap();
-    
+
     window.addEventListener('resize', checkWrap);
-    
+
     let resizeObserver: ResizeObserver | null = null;
     if (typeof ResizeObserver !== 'undefined') {
       resizeObserver = new ResizeObserver(() => {
@@ -62,20 +62,20 @@ function ResponsiveLocationText({ locationName }: { locationName?: string }) {
   const country = getCountryFromLocationName(locationName);
 
   return (
-    <div 
-      ref={containerRef} 
-      style={{ 
-        position: 'relative', 
-        width: '100%', 
+    <div
+      ref={containerRef}
+      style={{
+        position: 'relative',
+        width: '100%',
         overflow: 'hidden',
         whiteSpace: 'nowrap'
       }}
     >
-      <span 
-        ref={measureRef} 
-        style={{ 
-          position: 'absolute', 
-          visibility: 'hidden', 
+      <span
+        ref={measureRef}
+        style={{
+          position: 'absolute',
+          visibility: 'hidden',
           whiteSpace: 'nowrap',
           pointerEvents: 'none'
         }}
@@ -289,7 +289,7 @@ export default function CategoryList({ db, onHoverCategory }: CategoryListProps)
       position: 'relative',
       zIndex: 10,
     }}>
-      <header style={{ marginBottom: '6rem', paddingLeft: '4rem', maxWidth: '1600px', margin: '0 auto 6rem auto', width: '100%', boxSizing: 'border-box' }}>
+      <header style={{ marginBottom: '1rem', paddingLeft: '4rem', maxWidth: '1600px', margin: '0 auto 2rem auto', width: '100%', boxSizing: 'border-box' }}>
         <motion.h1
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -307,14 +307,15 @@ export default function CategoryList({ db, onHoverCategory }: CategoryListProps)
         </motion.p>
       </header>
 
-      <div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
         {groupedByYear.map((group, groupIndex) => (
-          <FilmStripRow
-            key={group.year}
-            group={group}
-            groupIndex={groupIndex}
-            onHoverCategory={onHoverCategory}
-          />
+          <div key={group.year} style={{ marginTop: groupIndex === 0 ? '0' : '-3rem' }}>
+            <FilmStripRow
+              group={group}
+              groupIndex={groupIndex}
+              onHoverCategory={onHoverCategory}
+            />
+          </div>
         ))}
       </div>
     </div>
