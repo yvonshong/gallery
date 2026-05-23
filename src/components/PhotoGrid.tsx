@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect } from 'react';
 import type { CategoryData } from '../App';
 import { ArrowLeft } from 'lucide-react';
 import { PhotoProvider, PhotoView } from 'react-photo-view';
@@ -16,10 +16,12 @@ interface PhotoGridProps {
 export default function PhotoGrid({ categories, activeCategoryId, setLocation }: PhotoGridProps) {
   // Scroll to active category on mount or when activeCategoryId changes
   useEffect(() => {
+    const container = document.getElementById('scroll-container');
+    if (!container) return;
+
     if (activeCategoryId) {
       // First, quickly reset scroll position to top so we don't trigger lazy loads on the old scroll position from the homepage
-      const container = document.getElementById('scroll-container');
-      if (container && container.scrollTop > 0) {
+      if (container.scrollTop > 0) {
         container.scrollTop = 0;
       }
 
@@ -31,6 +33,9 @@ export default function PhotoGrid({ categories, activeCategoryId, setLocation }:
         }
       }, 80);
       return () => clearTimeout(timer);
+    } else {
+      // If no specific category is requested, just scroll to the top of the photos page
+      container.scrollTop = 0;
     }
   }, [activeCategoryId]);
 
