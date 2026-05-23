@@ -21,6 +21,7 @@ export interface PhotoData {
   fNumber: number | string;
   iso: number | string;
   exposureTime: number | string;
+  locationName?: string;
 }
 
 export interface CategoryData {
@@ -42,6 +43,9 @@ function MainLayout({ db }: { db: PhotosDB | null }) {
   const location = window.location.hash;
 
   useEffect(() => {
+    if (window.location.hash.startsWith('#/category/')) {
+      return;
+    }
     const container = document.getElementById('scroll-container');
     if (container) container.scrollTop = 0;
   }, [location]);
@@ -62,6 +66,15 @@ function MainLayout({ db }: { db: PhotosDB | null }) {
       <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: 0 }}>
         <GlobeBackground targetLocation={activeLocation} />
       </div>
+
+      {/* 毛玻璃水雾遮罩 */}
+      <div style={{
+        position: 'absolute', top: 0, left: 0, width: '100%', height: '100%',
+        zIndex: 0, pointerEvents: 'none',
+        backdropFilter: 'blur(12px) saturate(140%)',
+        backgroundColor: 'rgba(250, 250, 250, 0.15)',
+        backgroundImage: 'url("data:image/svg+xml,%3Csvg viewBox=%220 0 200 200%22 xmlns=%22http://www.w3.org/2000/svg%22%3E%3Cfilter id=%22noise%22%3E%3CfeTurbulence type=%22fractalNoise%22 baseFrequency=%220.8%22 numOctaves=%224%22 stitchTiles=%22stitch%22/%3E%3C/filter%3E%3Crect width=%22100%25%22 height=%22100%25%22 filter=%22url(%23noise)%22 opacity=%220.06%22/%3E%3C/svg%3E")'
+      }}></div>
       
       <div id="scroll-container" style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: 1, overflowY: 'auto' }}>
         <Routes>
@@ -75,26 +88,34 @@ function MainLayout({ db }: { db: PhotosDB | null }) {
 
 function PhotoGridWrapper({ db, setLocation }: { db: PhotosDB, setLocation: (lat: number, lng: number) => void }) {
   const { id } = useParams();
-  const category = db.categories.find(c => c.id === id);
   
-  useEffect(() => {
-    if (category) {
-      setLocation(category.lat, category.lng);
-    }
-  }, [category, setLocation]);
-
-  if (!category) return <div style={{ padding: '2rem' }}>Category not found</div>;
-
-  return <PhotoGrid category={category} />;
+  return <PhotoGrid categories={db.categories} activeCategoryId={id} setLocation={setLocation} />;
 }
 
 function App() {
   const [db, setDb] = useState<PhotosDB | null>(null);
 
   useEffect(() => {
-    fetch('/photos_db.json')
+    // Use BASE_URL to support GitHub Pages subpath deployments
+    const dbUrl = (import.meta.env.BASE_URL || '/') + 'photos_db.json';
+    
+    fetch(dbUrl.replace('//', '/'))
       .then(res => res.json())
-      .then(data => setDb(data))
+      .then((data: PhotosDB) => {
+        // Support R2 deployment mode via VITE_IMAGE_BASE_URL, fallback to local debug mode
+        const imageBaseUrl = import.meta.env.VITE_IMAGE_BASE_URL || import.meta.env.BASE_URL || '/';
+        const prefix = imageBaseUrl.endsWith('/') ? imageBaseUrl : imageBaseUrl + '/';
+        
+        data.categories.forEach(cat => {
+          if (cat.cover && !cat.cover.startsWith('http')) cat.cover = prefix + cat.cover;
+          cat.photos.forEach(photo => {
+            if (photo.webRawUrl && !photo.webRawUrl.startsWith('http')) photo.webRawUrl = prefix + photo.webRawUrl;
+            if (photo.thumbUrl && !photo.thumbUrl.startsWith('http')) photo.thumbUrl = prefix + photo.thumbUrl;
+          });
+        });
+        
+        setDb(data);
+      })
       .catch(err => console.error('Failed to load photos DB:', err));
   }, []);
 

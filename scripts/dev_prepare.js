@@ -16,6 +16,7 @@ import exifr from 'exifr';
 import sharp from 'sharp';
 import convert from 'heic-convert';
 import https from 'https';
+import { execSync } from 'child_process';
 
 const PHOTOS_DIR    = path.join(process.cwd(), 'photos');
 const THUMBS_DIR    = path.join(PHOTOS_DIR, 'thumbnails');
@@ -84,8 +85,18 @@ async function ensureJpg(filePath) {
   const dir      = path.dirname(filePath);
   const jpgPath  = path.join(dir, `${baseName}.jpg`);
 
-  if (ext !== '.heic') {
-    // 非 HEIC，直接读原文件
+  if (ext === '.bmp') {
+    let jpgExists = false;
+    try { await fs.access(jpgPath); jpgExists = true; } catch {}
+    if (!jpgExists) {
+      console.log(`  Converting BMP → JPG: ${path.basename(jpgPath)}`);
+      execSync(`convert "${filePath}" -quality ${JPG_QUALITY} "${jpgPath}"`);
+    }
+    return { jpgPath, buffer: await fs.readFile(jpgPath) };
+  }
+
+  if (ext !== '.heic' && ext !== '.heif') {
+    // 非 HEIC/HEIF，直接读原文件
     return { jpgPath: filePath, buffer: await fs.readFile(filePath) };
   }
 
@@ -102,11 +113,19 @@ async function ensureJpg(filePath) {
   }
 
   // 需要转换
-  console.log(`  Converting HEIC → JPG: ${path.basename(jpgPath)}`);
+  console.log(`  Converting HEIC/HEIF → JPG: ${path.basename(jpgPath)}`);
   const jpegBuffer = await convert({ buffer: heicBuffer, format: 'JPEG', quality: 1 });
   await sharp(jpegBuffer)
+    .withMetadata() // 尽可能保留现有 metadata
     .jpeg({ quality: JPG_QUALITY })
     .toFile(jpgPath);
+
+  // 用 exiftool 从原 HEIC/HEIF 复制完整的 EXIF 信息到新 JPG 中
+  try {
+    execSync(`exiftool -m -TagsFromFile "${filePath}" -all:all -overwrite_original "${jpgPath}"`, { stdio: 'ignore' });
+  } catch (err) {
+    console.warn(`  [Warning] Failed to copy EXIF to ${path.basename(jpgPath)}. Is exiftool installed?`);
+  }
 
   return { jpgPath, buffer: jpegBuffer };
 }
@@ -141,11 +160,11 @@ async function processPhoto(filePath, categoryName) {
       .toFile(thumbPath);
   }
 
-  // 4. 读取 EXIF（从原始文件读，exifr 支持 HEIC）
+  // 4. 读取 EXIF（从原始文件读，exifr 支持 HEIC/HEIF）
   let exif = null;
   try {
-    const origBuffer = origExt === '.heic'
-      ? await fs.readFile(filePath)   // HEIC 原文件保留 EXIF 最完整
+    const origBuffer = (origExt === '.heic' || origExt === '.heif')
+      ? await fs.readFile(filePath)   // HEIC/HEIF 原文件保留 EXIF 最完整
       : buffer;
     exif = await exifr.parse(origBuffer, { tiff: true, ifd0: true, exif: true, gps: true });
   } catch {
@@ -198,19 +217,34 @@ async function main() {
 
     console.log(`\n── Category: ${entry}`);
     const files  = await fs.readdir(categoryPath);
+    
+    const updatedFiles = [];
+    for (const file of files) {
+      if (file.includes(' ')) {
+        const newFile = file.replace(/\s+/g, '_');
+        const oldPath = path.join(categoryPath, file);
+        const newPath = path.join(categoryPath, newFile);
+        console.log(`  Renaming file: "${file}" -> "${newFile}"`);
+        await fs.rename(oldPath, newPath);
+        updatedFiles.push(newFile);
+      } else {
+        updatedFiles.push(file);
+      }
+    }
+
     const photos = [];
 
-    for (const file of files) {
+    for (const file of updatedFiles) {
       const ext      = path.extname(file).toLowerCase();
       const baseName = path.basename(file, ext);
 
       // 只处理图片，跳过缩略图
-      if (!ext.match(/\.(jpg|jpeg|png|heic)$/i)) continue;
+      if (!ext.match(/\.(jpg|jpeg|png|heic|heif|bmp)$/i)) continue;
       if (baseName.startsWith('thumb_')) continue;
 
-      // 去重：如果同目录已有对应 HEIC，跳过同名 JPG（HEIC 优先）
-      if ((ext === '.jpg' || ext === '.jpeg') && files.includes(`${baseName}.heic`)) {
-        console.log(`  [skip] ${file} (HEIC counterpart exists)`);
+      // 去重：如果同目录已有对应 HEIC/HEIF 或 BMP，跳过同名 JPG（HEIC/HEIF/BMP 优先）
+      if ((ext === '.jpg' || ext === '.jpeg') && (updatedFiles.includes(`${baseName}.heic`) || updatedFiles.includes(`${baseName}.heif`) || updatedFiles.includes(`${baseName}.bmp`))) {
+        console.log(`  [skip] ${file} (HEIC/HEIF/BMP counterpart exists)`);
         continue;
       }
 

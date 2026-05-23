@@ -1,8 +1,93 @@
 import { useMemo, useRef, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import type { PhotosDB, CategoryData } from '../App';
+import type { PhotosDB, CategoryData, PhotoData } from '../App';
 import { ChevronRight, ChevronLeft } from 'lucide-react';
+
+const isUnknownLocation = (loc?: string) => {
+  if (!loc) return true;
+  const lower = loc.toLowerCase().trim();
+  return lower === '' || lower === 'unknown' || lower === 'unknown location';
+};
+
+const getCountryFromLocationName = (locationName?: string) => {
+  if (!locationName) return '';
+  if (locationName.startsWith('United States')) return 'United States';
+  if (locationName.startsWith('United Kingdom')) return 'United Kingdom';
+  if (locationName.startsWith('United Arab Emirates')) return 'United Arab Emirates';
+  if (locationName.startsWith('الإمارات العربية المتحدة')) return 'الإمارات العربية المتحدة';
+  return locationName.split(' ')[0] || '';
+};
+
+function ResponsiveLocationText({ locationName }: { locationName?: string }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const measureRef = useRef<HTMLSpanElement>(null);
+  const [showCountryOnly, setShowCountryOnly] = useState(false);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    const measure = measureRef.current;
+    if (!container || !measure) return;
+
+    const checkWrap = () => {
+      const fullTextWidth = measure.offsetWidth;
+      const containerWidth = container.offsetWidth;
+      setShowCountryOnly(fullTextWidth > containerWidth);
+    };
+
+    checkWrap();
+    
+    window.addEventListener('resize', checkWrap);
+    
+    let resizeObserver: ResizeObserver | null = null;
+    if (typeof ResizeObserver !== 'undefined') {
+      resizeObserver = new ResizeObserver(() => {
+        checkWrap();
+      });
+      resizeObserver.observe(container);
+    }
+
+    return () => {
+      window.removeEventListener('resize', checkWrap);
+      if (resizeObserver) {
+        resizeObserver.disconnect();
+      }
+    };
+  }, [locationName]);
+
+  if (isUnknownLocation(locationName)) {
+    return <>{'\u00A0'}</>;
+  }
+
+  const country = getCountryFromLocationName(locationName);
+
+  return (
+    <div 
+      ref={containerRef} 
+      style={{ 
+        position: 'relative', 
+        width: '100%', 
+        overflow: 'hidden',
+        whiteSpace: 'nowrap'
+      }}
+    >
+      <span 
+        ref={measureRef} 
+        style={{ 
+          position: 'absolute', 
+          visibility: 'hidden', 
+          whiteSpace: 'nowrap',
+          pointerEvents: 'none'
+        }}
+      >
+        {locationName}
+      </span>
+      <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', display: 'block' }}>
+        {showCountryOnly ? country : locationName}
+      </span>
+    </div>
+  );
+}
 
 interface CategoryListProps {
   db: PhotosDB;
@@ -14,7 +99,7 @@ function FilmStripRow({
   groupIndex,
   onHoverCategory
 }: {
-  group: { year: string, categories: (CategoryData & { randomCover: string })[] },
+  group: { year: string, categories: (CategoryData & { randomCover: string, randomCoverPhoto?: PhotoData | null })[] },
   groupIndex: number,
   onHoverCategory: (lat: number, lng: number) => void
 }) {
@@ -29,6 +114,17 @@ function FilmStripRow({
     if (!el || !scrollEl) return;
     const onWheel = (e: WheelEvent) => {
       if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+        const isScrollingDown = e.deltaY > 0;
+        const isScrollingUp = e.deltaY < 0;
+
+        const isAtLeftEdge = scrollEl.scrollLeft <= 0;
+        // 使用 Math.ceil 避免小数点精度导致无法判断到底
+        const isAtRightEdge = Math.ceil(scrollEl.scrollLeft + scrollEl.clientWidth) >= scrollEl.scrollWidth;
+
+        // 如果已经到了最右边且继续向下滚，或者到了最左边且继续向上滚，就不拦截，让页面上下滚动
+        if (isScrollingDown && isAtRightEdge) return;
+        if (isScrollingUp && isAtLeftEdge) return;
+
         e.preventDefault();
         scrollEl.scrollBy({ left: e.deltaY * 2, behavior: 'smooth' });
       }
@@ -87,7 +183,7 @@ function FilmStripRow({
                   transition={{ delay: 0.4 + groupIndex * 0.1 + i * 0.05 }}
                 >
                   <div className={`film-edge-text top-edge${hoveredId === cat.id ? ' hovered' : ''}`}>
-                    {cat.locationName || 'UNKNOWN LOCATION'}
+                    <ResponsiveLocationText locationName={cat.randomCoverPhoto?.locationName} />
                   </div>
                 </motion.div>
               ))}
@@ -107,6 +203,9 @@ function FilmStripRow({
                   transition={{ delay: 0.4 + groupIndex * 0.1 + i * 0.05, type: 'spring', damping: 20, stiffness: 100 }}
                   onMouseEnter={() => { setHoveredId(cat.id); onHoverCategory(cat.lat, cat.lng); }}
                   onMouseLeave={() => setHoveredId(null)}
+                  onTouchStart={() => { setHoveredId(cat.id); onHoverCategory(cat.lat, cat.lng); }}
+                  onTouchEnd={() => setHoveredId(null)}
+                  onTouchCancel={() => setHoveredId(null)}
                   style={{ scrollSnapAlign: 'start' }}
                 >
                   <Link to={`/category/${cat.id}`} style={{ textDecoration: 'none', display: 'block' }}>
@@ -154,7 +253,7 @@ function FilmStripRow({
 
 export default function CategoryList({ db, onHoverCategory }: CategoryListProps) {
   const groupedByYear = useMemo(() => {
-    const map = new Map<string, (typeof db.categories[0] & { randomCover: string })[]>();
+    const map = new Map<string, (typeof db.categories[0] & { randomCover: string, randomCoverPhoto?: PhotoData | null })[]>();
 
     for (const cat of db.categories) {
       const yearMatch = cat.name.match(/^(\d{4})/);
@@ -163,10 +262,12 @@ export default function CategoryList({ db, onHoverCategory }: CategoryListProps)
 
       const photos = cat.photos;
       let randomCover = cat.cover;
+      let randomCoverPhoto: PhotoData | null = null;
       if (photos && photos.length > 0) {
-        randomCover = photos[Math.floor(Math.random() * photos.length)].thumbUrl || cat.cover;
+        randomCoverPhoto = photos[Math.floor(Math.random() * photos.length)];
+        randomCover = randomCoverPhoto.thumbUrl || cat.cover;
       }
-      map.get(year)!.push({ ...cat, randomCover });
+      map.get(year)!.push({ ...cat, randomCover, randomCoverPhoto });
     }
 
     const sortedYears = Array.from(map.keys()).sort((a, b) => {

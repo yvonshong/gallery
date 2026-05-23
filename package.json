@@ -7,11 +7,15 @@
     "dev": "vite --host",
     "dev:prepare": "node scripts/dev_prepare.js",
     "process-photos": "node scripts/process_photos.js",
+    "write-exif": "python3 scripts/write_exif.py",
+    "publish-img": "node scripts/publish_img/publish.js",
     "build": "node scripts/process_photos.js && tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1053.0",
+    "dotenv": "^17.4.2",
     "framer-motion": "^12.40.0",
     "lucide-react": "^1.16.0",
     "react": "^19.2.6",

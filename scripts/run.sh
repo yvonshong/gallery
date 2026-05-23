@@ -1,0 +1,1 @@
+python3 scripts/write_exif.py 高松 photos/2026.05-Takamatsu/20260425_090747000_iOS.jpg photos/2026.05-Takamatsu/20260509_074544000_iOS.jpg photos/2026.05-Takamatsu/20260509_094849839_iOS.jpg

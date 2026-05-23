@@ -4,6 +4,7 @@ import exifr from 'exifr';
 import sharp from 'sharp';
 import convert from 'heic-convert';
 import https from 'https';
+import { execSync } from 'child_process';
 
 const PHOTOS_DIR = path.join(process.cwd(), 'photos');
 const DB_OUTPUT_PATH = path.join(process.cwd(), 'public', 'photos_db.json');
@@ -25,11 +26,41 @@ async function saveGeocache(cache) {
   await fs.writeFile(CACHE_PATH, JSON.stringify(cache, null, 2));
 }
 
+function findNearestCachedLocation(lat, lng, cache, maxDistanceDegrees = 0.05) {
+  let nearestName = null;
+  let minDistance = Infinity;
+
+  for (const key of Object.keys(cache)) {
+    const [cLatStr, cLngStr] = key.split(',');
+    const cLat = parseFloat(cLatStr);
+    const cLng = parseFloat(cLngStr);
+    if (isNaN(cLat) || isNaN(cLng)) continue;
+    
+    const dist = Math.hypot(lat - cLat, lng - cLng);
+    if (dist < minDistance) {
+      minDistance = dist;
+      nearestName = cache[key];
+    }
+  }
+
+  if (minDistance <= maxDistanceDegrees) {
+    return nearestName;
+  }
+  return null;
+}
+
 // Reverse Geocoding using Nominatim (with cache and rate limit)
 async function reverseGeocode(lat, lng, cache) {
   const key = `${lat.toFixed(4)},${lng.toFixed(4)}`;
   if (cache[key]) {
     return cache[key];
+  }
+
+  const nearest = findNearestCachedLocation(lat, lng, cache, 0.05);
+  if (nearest) {
+    console.log(`  Geocode cache hit (nearby): ${lat.toFixed(4)},${lng.toFixed(4)} -> using "${nearest}"`);
+    cache[key] = nearest;
+    return nearest;
   }
 
   await delay(1100); // Nominatim limit: 1 req/sec
@@ -70,11 +101,30 @@ async function reverseGeocode(lat, lng, cache) {
 
 async function processPhoto(filePath, categoryName) {
   console.log(`Processing: ${filePath}`);
-  const ext = path.extname(filePath).toLowerCase();
+  let ext = path.extname(filePath).toLowerCase();
   const dir = path.dirname(filePath);
   const baseName = path.basename(filePath, ext);
 
-  let buffer = await fs.readFile(filePath);
+  let activeFilePath = filePath;
+
+  // Convert BMP to JPG on disk using ImageMagick CLI
+  if (ext === '.bmp') {
+    const jpgPath = path.join(dir, `${baseName}.jpg`);
+    let jpgExists = false;
+    try {
+      await fs.access(jpgPath);
+      jpgExists = true;
+    } catch {}
+
+    if (!jpgExists) {
+      console.log(`  Converting BMP to JPG: ${baseName}.jpg`);
+      execSync(`convert "${filePath}" -quality 88 "${jpgPath}"`);
+    }
+    activeFilePath = jpgPath;
+    ext = '.jpg';
+  }
+
+  let buffer = await fs.readFile(activeFilePath);
   const thumbFileName = `thumb_${baseName}.jpg`;
   const thumbDir = path.join(PHOTOS_DIR, 'thumbnails', categoryName);
   await fs.mkdir(thumbDir, { recursive: true });
@@ -85,15 +135,14 @@ async function processPhoto(filePath, categoryName) {
 
   let processableBuffer = buffer;
 
-  // Only run the expensive HEIC conversion if we need to generate thumbnail
-  if (ext === '.heic' && needsThumb) {
-    console.log(`  Converting HEIC to JPG buffer...`);
+  if ((ext === '.heic' || ext === '.heif') && needsThumb) {
+    console.log(`  Converting HEIC/HEIF to JPG buffer...`);
     processableBuffer = await convert({
       buffer: buffer,
       format: 'JPEG',
       quality: 1
     });
-  } else if (ext === '.heic') {
+  } else if (ext === '.heic' || ext === '.heif') {
     // Already have thumbnail, still need a processable buffer for metadata
     processableBuffer = await convert({
       buffer: buffer,
@@ -168,25 +217,45 @@ async function main() {
 
       console.log(`\nProcessing category: ${category}`);
       const files = await fs.readdir(categoryPath);
+      
+      const updatedFiles = [];
+      for (const file of files) {
+        if (file.includes(' ')) {
+          const newFile = file.replace(/\s+/g, '_');
+          const oldPath = path.join(categoryPath, file);
+          const newPath = path.join(categoryPath, newFile);
+          console.log(`  Renaming file: "${file}" -> "${newFile}"`);
+          await fs.rename(oldPath, newPath);
+          updatedFiles.push(newFile);
+        } else {
+          updatedFiles.push(file);
+        }
+      }
+
       const photos = [];
 
-      for (const file of files) {
+      for (const file of updatedFiles) {
         const ext = path.extname(file).toLowerCase();
         const baseName = path.basename(file, ext);
 
         // Skip thumbnails and non-image files
-        if (!ext.match(/\.(jpg|jpeg|png|heic)$/i) || baseName.startsWith('thumb_')) {
+        if (!ext.match(/\.(jpg|jpeg|png|heic|heif|bmp)$/i) || baseName.startsWith('thumb_')) {
           continue;
         }
 
-        // Deduplicate: if this is a JPG and there is a HEIC with the same base name, skip the JPG
-        if ((ext === '.jpg' || ext === '.jpeg') && files.includes(`${baseName}.heic`)) {
+        // Deduplicate: if this is a JPG and there is a HEIC/HEIF or BMP with the same base name, skip the JPG
+        if ((ext === '.jpg' || ext === '.jpeg') && (updatedFiles.includes(`${baseName}.heic`) || updatedFiles.includes(`${baseName}.heif`) || updatedFiles.includes(`${baseName}.bmp`))) {
           continue;
         }
 
-        if (['.jpg', '.jpeg', '.png', '.heic'].includes(ext)) {
+        if (['.jpg', '.jpeg', '.png', '.heic', '.heif', '.bmp'].includes(ext)) {
           const photoData = await processPhoto(path.join(categoryPath, file), category);
           if (photoData) {
+            let photoLocationName = 'Unknown Location';
+            if (photoData.lat !== 0 || photoData.lng !== 0) {
+              photoLocationName = await reverseGeocode(photoData.lat, photoData.lng, cache);
+            }
+            photoData.locationName = photoLocationName || 'Unknown Location';
             photos.push(photoData);
           }
         }

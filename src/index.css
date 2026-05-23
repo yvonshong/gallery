@@ -135,13 +135,13 @@ a {
 /* Each horizontal row (text / image) */
 .film-row {
   display: flex;
-  gap: clamp(1.5rem, 3vw, 3rem);
+  gap: clamp(1rem, 2vw, 2rem);
   padding: 0 max(4rem, calc(50vw - 800px + 4rem));
 }
 
 /* Each cell: same fixed width as old .film-frame */
 .film-cell {
-  width: clamp(200px, 45vw, 360px);
+  width: clamp(140px, 30vw, 240px);
   flex-shrink: 0;
 }
 
@@ -169,15 +169,15 @@ a {
 /* Full-width sprocket bar base styles */
 .film-sprocket-bar {
   width: 100%;
-  height: clamp(10px, 2vw, 16px);
+  height: clamp(8px, 1.5vw, 12px);
   background-image: repeating-linear-gradient(90deg,
       #111 0,
-      #111 clamp(5px, 1vw, 10px),
-      rgba(255, 255, 255, 0.85) clamp(5px, 1vw, 10px),
-      rgba(255, 255, 255, 0.85) clamp(12.5px, 2.5vw, 25px),
-      #111 clamp(12.5px, 2.5vw, 25px),
-      #111 clamp(17.5px, 3.5vw, 35px));
-  background-size: clamp(17.5px, 3.5vw, 35px) 100%;
+      #111 clamp(4px, 0.8vw, 8px),
+      rgba(255, 255, 255, 0.85) clamp(4px, 0.8vw, 8px),
+      rgba(255, 255, 255, 0.85) clamp(10px, 2vw, 20px),
+      #111 clamp(10px, 2vw, 20px),
+      #111 clamp(14px, 2.8vw, 28px));
+  background-size: clamp(14px, 2.8vw, 28px) 100%;
 }
 
 /* 上方的卡孔条 */
@@ -199,8 +199,8 @@ a {
 .film-edge-text {
   font-family: 'Inter', var(--font-heading);
   /* Mixing technical tracking with traditional font */
-  font-size: clamp(0.5rem, 1.5vw, 0.75rem);
-  letter-spacing: clamp(0.3em, 0.5vw, 0.5em);
+  font-size: clamp(0.45rem, 1.2vw, 0.65rem);
+  letter-spacing: clamp(0.2em, 0.4vw, 0.4em);
   font-weight: 400;
   color: #666;
   text-transform: uppercase;
@@ -339,8 +339,8 @@ a {
   border-radius: 12px;
   /* 增加圆角使纸张边缘更柔和 (原本是4px) */
   box-shadow:
-    0 10px 30px rgba(0, 0, 0, 0.08),
-    0 1px 3px rgba(0, 0, 0, 0.05);
+    0 15px 35px rgba(0, 0, 0, 0.15),
+    0 3px 10px rgba(0, 0, 0, 0.08);
   transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.4s ease, z-index 0s;
   cursor: pointer;
 }
@@ -367,4 +367,20 @@ a {
   height: 100%;
   object-fit: cover;
   /* 取消了 hover 时的 transform 动画 */
+}
+
+.fuji-sq-caption {
+  position: absolute;
+  bottom: 7%;
+  left: 6.94%;
+  right: 6.94%;
+  text-align: center;
+  font-family: var(--font-heading);
+  font-style: italic;
+  font-size: 0.8rem;
+  color: #555555;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  letter-spacing: 0.02em;
 }
