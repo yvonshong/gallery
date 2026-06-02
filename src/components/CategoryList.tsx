@@ -303,7 +303,7 @@ export default function CategoryList({ db, onHoverCategory }: CategoryListProps)
           transition={{ delay: 0.2 }}
           style={{ fontFamily: 'var(--font-heading)', color: 'var(--text-secondary)', fontSize: 'clamp(1rem, 2.5vw, 1.4rem)', fontWeight: 400, fontStyle: 'italic', maxWidth: '500px', lineHeight: 1.6 }}
         >
-          photography for yvonshong
+          photograph for yvonshong
         </motion.p>
       </header>
 
